@@ -3,6 +3,7 @@
 /out/
 /broadcast/
 /lib/
+/tests/private/
 
 # Cobertura y perfiles
 /coverage/
@@ -22,5 +23,5 @@
 .DS_Store
 Thumbs.db
 
-# Documentación interna
-vulnerability.md
+# Local review material
+/review/

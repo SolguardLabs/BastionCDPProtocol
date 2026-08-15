@@ -1,0 +1,27 @@
+{
+  "name": "@solguardlabs/bastion-cdp-protocol",
+  "version": "1.0.0",
+  "private": true,
+  "description": "BastionCDPProtocol SDK and repository validation",
+  "type": "module",
+  "scripts": {
+    "build:sdk": "tsc --noEmit",
+    "check:loc": "node scripts/check-loc.mjs",
+    "format": "prettier --write README.md SECURITY.md docs sdk scripts/verify-repository.test.mjs package.json tsconfig.json .prettierrc.json",
+    "format:check": "prettier --check README.md SECURITY.md docs sdk scripts/verify-repository.test.mjs package.json tsconfig.json .prettierrc.json",
+    "test": "npm run test:sdk && npm run test:repository",
+    "test:repository": "node --test scripts/verify-repository.test.mjs",
+    "test:sdk": "tsx --test sdk/*.test.ts",
+    "ci:sdk": "npm run format:check && npm run build:sdk && npm test"
+  },
+  "engines": {
+    "node": ">=24",
+    "npm": ">=11"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "prettier": "3.9.5",
+    "tsx": "4.23.0",
+    "typescript": "5.9.3"
+  }
+}
