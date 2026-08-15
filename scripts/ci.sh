@@ -6,5 +6,9 @@ cd "$ROOT_DIR"
 
 bash scripts/bootstrap.sh
 forge fmt --check
-forge build --deny warnings
-FOUNDRY_PROFILE=ci forge test --deny warnings
+forge build --deny warnings --sizes
+FOUNDRY_PROFILE=ci forge test --deny warnings --no-match-path "tests/private/**"
+
+npm ci --ignore-scripts
+npm run ci:sdk
+npm run check:loc

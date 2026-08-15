@@ -10,6 +10,9 @@ library BastionRoles {
     bytes32 internal constant TOKEN_BURNER_ROLE = keccak256("BASTION_TOKEN_BURNER_ROLE");
     bytes32 internal constant ORACLE_POSTER_ROLE = keccak256("BASTION_ORACLE_POSTER_ROLE");
     bytes32 internal constant PAUSER_ROLE = keccak256("BASTION_PAUSER_ROLE");
+    bytes32 internal constant GOVERNOR_ROLE = keccak256("BASTION_GOVERNOR_ROLE");
+    bytes32 internal constant EXECUTOR_ROLE = keccak256("BASTION_EXECUTOR_ROLE");
+    bytes32 internal constant GUARDIAN_ROLE = keccak256("BASTION_GUARDIAN_ROLE");
 }
 
 contract BastionAccessControl {

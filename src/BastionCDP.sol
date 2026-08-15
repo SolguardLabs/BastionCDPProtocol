@@ -26,6 +26,7 @@ contract BastionCDP is BastionAccessControl, BastionReentrancyGuard {
     error VaultHasDebt();
     error VaultHealthy();
     error CollateralNotSupported();
+    error InvalidModule();
 
     BastionDebtToken public immutable debtToken;
     BastionProtocolShare public immutable protocolShare;
@@ -68,45 +69,35 @@ contract BastionCDP is BastionAccessControl, BastionReentrancyGuard {
 
     constructor(
         address admin,
-        uint256 initialStabilityRateBps
+        BastionDebtToken debtToken_,
+        BastionProtocolShare protocolShare_,
+        VaultLedger ledger_,
+        AccountingEngine accounting_,
+        StabilityFeeController feeController_,
+        RiskEngine riskEngine_,
+        CollateralAuctionHouse collateralAuctionHouse_,
+        DebtAuctionHouse debtAuctionHouse_
     ) BastionAccessControl(admin) {
+        if (
+            address(debtToken_) == address(0) || address(protocolShare_) == address(0)
+                || address(ledger_) == address(0) || address(accounting_) == address(0)
+                || address(feeController_) == address(0) || address(riskEngine_) == address(0)
+                || address(collateralAuctionHouse_) == address(0)
+                || address(debtAuctionHouse_) == address(0)
+        ) revert InvalidModule();
+
         _grantRole(BastionRoles.RISK_MANAGER_ROLE, admin);
         _grantRole(BastionRoles.AUCTIONEER_ROLE, admin);
         _grantRole(BastionRoles.PAUSER_ROLE, admin);
 
-        debtToken = new BastionDebtToken(address(this));
-        protocolShare = new BastionProtocolShare(address(this));
-        ledger = new VaultLedger(address(this));
-        accounting = new AccountingEngine(address(this));
-        feeController = new StabilityFeeController(address(this), initialStabilityRateBps);
-        riskEngine = new RiskEngine();
-        collateralAuctionHouse = new CollateralAuctionHouse(address(this), debtToken);
-        debtAuctionHouse = new DebtAuctionHouse(address(this), debtToken, protocolShare);
-
-        debtToken.grantRole(BastionRoles.TOKEN_MINTER_ROLE, address(this));
-        debtToken.grantRole(BastionRoles.TOKEN_BURNER_ROLE, address(this));
-        debtToken.grantRole(BastionRoles.TOKEN_BURNER_ROLE, address(collateralAuctionHouse));
-        debtToken.grantRole(BastionRoles.TOKEN_BURNER_ROLE, address(debtAuctionHouse));
-
-        protocolShare.grantRole(BastionRoles.TOKEN_MINTER_ROLE, address(debtAuctionHouse));
-
-        ledger.grantRole(BastionRoles.PROTOCOL_ROLE, address(this));
-        ledger.grantRole(BastionRoles.RISK_MANAGER_ROLE, address(this));
-
-        accounting.grantRole(BastionRoles.PROTOCOL_ROLE, address(this));
-        accounting.grantRole(BastionRoles.AUCTIONEER_ROLE, address(collateralAuctionHouse));
-        accounting.grantRole(BastionRoles.AUCTIONEER_ROLE, address(debtAuctionHouse));
-
-        feeController.grantRole(BastionRoles.PROTOCOL_ROLE, address(this));
-        feeController.grantRole(BastionRoles.RISK_MANAGER_ROLE, address(this));
-
-        collateralAuctionHouse.grantRole(BastionRoles.AUCTIONEER_ROLE, address(this));
-        collateralAuctionHouse.grantRole(BastionRoles.RISK_MANAGER_ROLE, address(this));
-        collateralAuctionHouse.setAccounting(address(accounting));
-
-        debtAuctionHouse.grantRole(BastionRoles.AUCTIONEER_ROLE, address(this));
-        debtAuctionHouse.grantRole(BastionRoles.RISK_MANAGER_ROLE, address(this));
-        debtAuctionHouse.setAccounting(address(accounting));
+        debtToken = debtToken_;
+        protocolShare = protocolShare_;
+        ledger = ledger_;
+        accounting = accounting_;
+        feeController = feeController_;
+        riskEngine = riskEngine_;
+        collateralAuctionHouse = collateralAuctionHouse_;
+        debtAuctionHouse = debtAuctionHouse_;
     }
 
     function setPaused(

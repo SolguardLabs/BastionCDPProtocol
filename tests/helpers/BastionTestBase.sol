@@ -2,8 +2,13 @@
 pragma solidity ^0.8.26;
 
 import { BastionCDP } from "../../src/BastionCDP.sol";
+import { BastionRoles } from "../../src/access/BastionAccessControl.sol";
 import { CollateralAuctionHouse } from "../../src/auctions/CollateralAuctionHouse.sol";
 import { DebtAuctionHouse } from "../../src/auctions/DebtAuctionHouse.sol";
+import { AccountingEngine } from "../../src/core/AccountingEngine.sol";
+import { RiskEngine } from "../../src/core/RiskEngine.sol";
+import { StabilityFeeController } from "../../src/core/StabilityFeeController.sol";
+import { VaultLedger } from "../../src/core/VaultLedger.sol";
 import { MedianPriceOracle } from "../../src/oracle/MedianPriceOracle.sol";
 import { BastionCollateralToken } from "../../src/tokens/BastionCollateralToken.sol";
 import { BastionDebtToken } from "../../src/tokens/BastionDebtToken.sol";
@@ -32,7 +37,27 @@ contract BastionTestBase is Test {
     function setUp() public virtual {
         vm.startPrank(admin);
 
-        protocol = new BastionCDP(admin, 500);
+        debt = new BastionDebtToken(admin);
+        share = new BastionProtocolShare(admin);
+        VaultLedger vaultLedger = new VaultLedger(admin);
+        AccountingEngine accountingEngine = new AccountingEngine(admin);
+        StabilityFeeController feeController = new StabilityFeeController(admin, 500);
+        RiskEngine riskEngine = new RiskEngine();
+        collateralAuction = new CollateralAuctionHouse(admin, debt);
+        debtAuction = new DebtAuctionHouse(admin, debt, share);
+        protocol = new BastionCDP(
+            admin,
+            debt,
+            share,
+            vaultLedger,
+            accountingEngine,
+            feeController,
+            riskEngine,
+            collateralAuction,
+            debtAuction
+        );
+        _configureModules(vaultLedger, accountingEngine, feeController);
+
         collateral = new BastionCollateralToken(admin, "Bastion Ether", "bETH", 0, 100e18);
         oracle = new MedianPriceOracle(admin);
         oracle.postPrice(address(collateral), INITIAL_PRICE);
@@ -54,15 +79,37 @@ contract BastionTestBase is Test {
         protocol.setCollateralAuctionDuration(1 hours);
         protocol.setDebtAuctionParameters(1 hours, 300);
 
-        debt = protocol.debtToken();
-        share = protocol.protocolShare();
-        collateralAuction = protocol.collateralAuctionHouse();
-        debtAuction = protocol.debtAuctionHouse();
-
         collateral.mint(alice, 1000e18);
         collateral.mint(bob, 1000e18);
 
         vm.stopPrank();
+    }
+
+    function _configureModules(
+        VaultLedger vaultLedger,
+        AccountingEngine accountingEngine,
+        StabilityFeeController feeController
+    ) internal {
+        debt.grantRole(BastionRoles.TOKEN_MINTER_ROLE, address(protocol));
+        debt.grantRole(BastionRoles.TOKEN_BURNER_ROLE, address(protocol));
+        debt.grantRole(BastionRoles.TOKEN_BURNER_ROLE, address(collateralAuction));
+        debt.grantRole(BastionRoles.TOKEN_BURNER_ROLE, address(debtAuction));
+        share.grantRole(BastionRoles.TOKEN_MINTER_ROLE, address(debtAuction));
+
+        vaultLedger.grantRole(BastionRoles.PROTOCOL_ROLE, address(protocol));
+        vaultLedger.grantRole(BastionRoles.RISK_MANAGER_ROLE, address(protocol));
+        accountingEngine.grantRole(BastionRoles.PROTOCOL_ROLE, address(protocol));
+        accountingEngine.grantRole(BastionRoles.AUCTIONEER_ROLE, address(collateralAuction));
+        accountingEngine.grantRole(BastionRoles.AUCTIONEER_ROLE, address(debtAuction));
+        feeController.grantRole(BastionRoles.PROTOCOL_ROLE, address(protocol));
+        feeController.grantRole(BastionRoles.RISK_MANAGER_ROLE, address(protocol));
+
+        collateralAuction.grantRole(BastionRoles.AUCTIONEER_ROLE, address(protocol));
+        collateralAuction.grantRole(BastionRoles.RISK_MANAGER_ROLE, address(protocol));
+        collateralAuction.setAccounting(address(accountingEngine));
+        debtAuction.grantRole(BastionRoles.AUCTIONEER_ROLE, address(protocol));
+        debtAuction.grantRole(BastionRoles.RISK_MANAGER_ROLE, address(protocol));
+        debtAuction.setAccounting(address(accountingEngine));
     }
 
     function openDepositAndMint(
